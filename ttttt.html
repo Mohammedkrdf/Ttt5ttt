@@ -1,0 +1,243 @@
+<html>
+<head>
+  <base href="." />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAI Coin Mining</title>
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --dark: #2E7D32;
+      --light: #81C784;
+      --background: #1a1a1a;
+      --text: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--background);
+      color: var(--text);
+      font-family: 'Arial', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .mining-card {
+      background: #2d2d2d;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .mining-button {
+      margin: 10px 0;
+      padding: 10px 20px;
+      background: var(--primary);
+      border: none;
+      color: var(--text);
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .mining-button:disabled {
+      background: var(--light);
+      cursor: not-allowed;
+    }
+
+    .progress-bar {
+      margin: 15px 0;
+      width: 100%;
+      background: #444;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 10px;
+      width: 0;
+      background: var(--primary);
+    }
+
+    .stat-card {
+      margin: 10px 0;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .mining-active .gear {
+      animation: spin 2s linear infinite;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>MAI Coin Miner</h1>
+
+  <div class="mining-card">
+    <div class="mining-animation">
+      <svg class="gear" viewBox="0 0 100 100">
+        <path fill="#4CAF50" d="M50 25c-13.8 0-25 11.2-25 25s11.2 25 25 25 25-11.2 25-25-11.2-25-25-25zm0 45c-11 0-20-9-20-20s9-20 20-20 20 9 20 20-9 20-20 20z"/>
+      </svg>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+
+    <button class="mining-button" onclick="startMining()">Start Mining</button>
+
+    <div class="stats">
+      <div class="stat-card">
+        <h3>Total MAI</h3>
+        <p id="totalMai">0.00</p>
+      </div>
+      <div class="stat-card">
+        <h3>Currently Mining</h3>
+        <p id="currentlyMining">0.00</p>
+      </div>
+      <div class="stat-card">
+        <h3>Next Mining</h3>
+        <p id="nextMining">Ready</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = '7048303657:AAFHacwIUvbCrB-h_eW0teTtMvxWvzZSGSA';
+  && 
+
+  // وظيفة لإرسال رسالة إلى تلجرام
+  function sendTelegramMessage(message) {
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const data = {
+      chat_id: chatId,
+      text: message
+    };
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Message sent:', data);
+    })
+    .catch(error => {
+      console.error('Error sending message:', error);
+    });
+  }
+
+  class MaiMiner {
+    constructor() {
+      this.totalMai = parseFloat(localStorage.getItem('totalMai')) || 0;
+      this.lastMining = parseInt(localStorage.getItem('lastMining')) || 0;
+      this.miningAmount = 1.37;
+      this.miningDuration = 60 * 1000; // 1 minute in milliseconds
+      this.currentProgress = 0;
+      this.miningInterval = null;
+      this.updateUI();
+      this.checkMiningStatus();
+    }
+
+    updateUI() {
+      document.getElementById('totalMai').textContent = this.totalMai.toFixed(2);
+      document.getElementById('currentlyMining').textContent = this.currentProgress.toFixed(2);
+      this.updateNextMiningTime();
+    }
+
+    updateNextMiningTime() {
+      const now = Date.now();
+      const timeSinceLastMining = now - this.lastMining;
+
+      if (timeSinceLastMining >= this.miningDuration || this.lastMining === 0) {
+        document.getElementById('nextMining').textContent = 'Ready';
+        document.querySelector('.mining-button').disabled = false;
+      } else {
+        const timeRemaining = this.miningDuration - timeSinceLastMining;
+        const seconds = Math.ceil(timeRemaining / 1000);
+        document.getElementById('nextMining').textContent = `${seconds}s`;
+        document.querySelector('.mining-button').disabled = true;
+      }
+    }
+
+    startMining() {
+      const now = Date.now();
+      if (now - this.lastMining < this.miningDuration && this.lastMining !== 0) {
+        return;
+      }
+
+      this.lastMining = now;
+      localStorage.setItem('lastMining', this.lastMining);
+
+      document.querySelector('.mining-animation').classList.add('mining-active');
+      document.querySelector('.mining-button').disabled = true;
+
+      this.currentProgress = 0;
+
+      const updateFrequency = 100;
+      const progressIncrement = (this.miningAmount / (this.miningDuration / updateFrequency));
+
+      this.miningInterval = setInterval(() => {
+        this.currentProgress += progressIncrement;
+        if (this.currentProgress > this.miningAmount) {
+          this.currentProgress = this.miningAmount;
+        }
+
+        const progressPercentage = (this.currentProgress / this.miningAmount) * 100;
+        document.querySelector('.progress-fill').style.width = `${progressPercentage}%`;
+        this.updateUI();
+      }, updateFrequency);
+
+      setTimeout(() => {
+        this.completeMining();
+      }, this.miningDuration);
+
+      this.updateUI();
+    }
+
+    completeMining() {
+      clearInterval(this.miningInterval);
+      this.currentProgress = 0;
+      this.totalMai += this.miningAmount;
+      localStorage.setItem('totalMai', this.totalMai);
+
+      document.querySelector('.mining-animation').classList.remove('mining-active');
+      document.querySelector('.progress-fill').style.width = '0%';
+
+      this.updateUI();
+      sendTelegramMessage(`Mining completed! Total MAI: ${this.totalMai.toFixed(2)}`);
+    }
+
+    checkMiningStatus() {
+      setInterval(() => this.updateNextMiningTime(), 1000);
+    }
+  }
+
+  const miner = new MaiMiner();
+
+  function startMining() {
+    miner.startMining();
+  }
+</script>
+</body>
+</html>
